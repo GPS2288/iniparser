@@ -3,11 +3,13 @@
 #
 
 # Compiler settings
-CC      = gcc
+CC = "gcc"
+FC = "gfortran"
 CFLAGS  = -O2 -fPIC -Wall -ansi -pedantic
+FFLAGS  = -O2 -fPIC -Wall -J src
 
 # Ar settings to build the library
-AR	    = ar
+AR = "ar"
 ARFLAGS = rcv
 
 SHLD = ${CC} ${CFLAGS}
@@ -20,35 +22,39 @@ RANLIB = true
 
 RM      = rm -f
 
-
 # Implicit rules
 
 SUFFIXES = .o .c .h .a .so .sl
 
+CSRCS = src/iniparser.c \
+	   src/dictionary.c \
+	   src/iniparser_wrapper.c
+COBJS = $(CSRCS:.c=.o)
+
+FSRCS = src/iniparser_wrapper.f03
+FOBJS = $(FSRCS:.f03=.f.o)
+FMODS = $(FSRCS:.f03=.mod)
+
 COMPILE.c=$(CC) $(CFLAGS) -c
-.c.o:
+$(COBJS): $(CSRCS)
 	@(echo "compiling $< ...")
 	@($(COMPILE.c) -o $@ $<)
 
+COMPILE.f=$(FC) $(FFLAGS) -c
+$(FOBJS): $(FSRCS)
+	@(echo "compiling $< ...")
+	@($(COMPILE.f) -o $@ $<)
 
-SRCS = src/iniparser.c \
-	   src/dictionary.c
+default:	libiniparser.a
 
-OBJS = $(SRCS:.c=.o)
+all: default
 
-
-default:	libiniparser.a libiniparser.so
-
-libiniparser.a:	$(OBJS)
+libiniparser.a:	$(COBJS) $(FOBJS)
 	@($(AR) $(ARFLAGS) libiniparser.a $(OBJS))
-	@($(RANLIB) libiniparser.a)
-
-libiniparser.so:	$(OBJS)
-	@$(SHLD) $(LDSHFLAGS) -o $@.0 $(OBJS) $(LDFLAGS) \
-		-Wl,-soname=`basename $@`.0
+#	@($(RANLIB) libiniparser.a)
 
 clean:
-	$(RM) $(OBJS)
+	$(RM) $(COBJS) $(FOBJS) $(FMODS)
 
 veryclean:
 	$(RM) $(OBJS) libiniparser.a libiniparser.so*
