@@ -20,6 +20,10 @@ module iniparser
     use, intrinsic :: iso_c_binding
     implicit none
 
+    type, bind(c) :: ptr_package
+        type(c_ptr) :: c, l
+    end type
+
     interface
         function iniparser_load(ininame) bind(c)
             use, intrinsic :: iso_c_binding
@@ -32,13 +36,24 @@ module iniparser
             type(c_ptr), value, intent(in) :: dic
         end subroutine
 
-        function C_iniparser_getstring(reslen, dic, key, notfound) bind(c, name="iniparser_getstring_wrapper")
+        function C_iniparser_getstring(dic, key, notfound, result_len) bind(c, name="iniparser_getstring_wrapper")
             use, intrinsic :: iso_c_binding
             type(c_ptr) :: C_iniparser_getstring
-            integer(c_long), intent(out) :: reslen
             type(c_ptr), value, intent(in) :: dic
             character(c_char), dimension(*), intent(in) :: key
             character(c_char), dimension(*), intent(in) :: notfound
+            integer(c_long), intent(out) :: result_len
+        end function
+
+        function C_iniparser_getstring_array(dic, key, delimiters, size) &
+        & bind(c, name="iniparser_getstring_array_wrapper")
+            use, intrinsic :: iso_c_binding
+            import ptr_package
+            type(ptr_package) :: C_iniparser_getstring_array
+            type(c_ptr), value, intent(in) :: dic
+            character(c_char), dimension(*), intent(in) :: key
+            character(c_char), dimension(*), intent(in) :: delimiters
+            integer(c_int), intent(in) :: size
         end function
 
         function iniparser_getint(dic, key, notfound) bind(c)
@@ -49,6 +64,15 @@ module iniparser
             integer(c_int), value, intent(in) :: notfound
         end function
 
+        function C_iniparser_getint_array(dic, key, delimiters, size) bind(c, name="iniparser_getint_array")
+            use, intrinsic :: iso_c_binding
+            type(c_ptr) :: C_iniparser_getint_array
+            type(c_ptr), value, intent(in) :: dic
+            character(c_char), dimension(*), intent(in) :: key
+            character(c_char), dimension(*), intent(in) :: delimiters
+            integer(c_int), intent(in) :: size
+        end function
+
         function iniparser_getdouble(dic, key, notfound) bind(c)
             use, intrinsic :: iso_c_binding
             real(c_double) :: iniparser_getdouble
@@ -57,12 +81,31 @@ module iniparser
             real(c_double), value, intent(in) :: notfound
         end function
 
+        function C_iniparser_getdouble_array(dic, key, delimiters, size) bind(c, name="iniparser_getdouble_array")
+            use, intrinsic :: iso_c_binding
+            type(c_ptr) :: C_iniparser_getdouble_array
+            type(c_ptr), value, intent(in) :: dic
+            character(c_char), dimension(*), intent(in) :: key
+            character(c_char), dimension(*), intent(in) :: delimiters
+            integer(c_int), intent(in) :: size
+        end function
+
         function iniparser_getboolean(dic, key, notfound) bind(c)
             use, intrinsic :: iso_c_binding
             integer(c_int) :: iniparser_getboolean
             type(c_ptr), value, intent(in) :: dic
             character(c_char), dimension(*), intent(in) :: key
             integer(c_int), value, intent(in) :: notfound
+        end function
+
+        function C_iniparser_getboolean_array(dic, key, delimiters, notfound, size) bind(c, name="iniparser_getboolean_array")
+            use, intrinsic :: iso_c_binding
+            type(c_ptr) :: C_iniparser_getboolean_array
+            type(c_ptr), value, intent(in) :: dic
+            character(c_char), dimension(*), intent(in) :: key
+            character(c_char), dimension(*), intent(in) :: delimiters
+            integer(c_int), value, intent(in) :: notfound
+            integer(c_int), intent(in) :: size
         end function
 
         function iniparser_getnsec(dic) bind(c)
@@ -99,12 +142,81 @@ module iniparser
         integer(c_long) :: result_len
         integer(c_long) :: n
 
-        result_Cptr = C_iniparser_getstring(result_len, dic, key, notfound)
+        result_Cptr = C_iniparser_getstring(dic, key, notfound, result_len)
         call c_f_pointer(result_Cptr, result_Fptr, [result_len]);
 
+        !Convert from character array to scalar string
         result = ""
         do n = 1, result_len
             result(n:n) = result_Fptr(n)
         end do
-    end subroutine iniparser_getstring
+    end subroutine
+
+    subroutine iniparser_getstring_array(result, dic, key, delimiters, size)
+        character(len=*,kind=c_char), dimension(:), allocatable, intent(out) :: result
+        type(c_ptr), value, intent(in) :: dic
+        character(c_char), dimension(*), intent(in) :: key
+        character(c_char), dimension(*), intent(in) :: delimiters
+        integer(c_int), intent(in) :: size
+
+        type(ptr_package) :: result_struct
+        integer(c_long), dimension(:), pointer :: result_len_Fptr
+        type(c_ptr), dimension(:), pointer :: result_Cptrs_Fptr
+        character(c_char), dimension(:), pointer :: result_str_Fptr
+        integer(c_long) :: n, m
+
+        result_struct = C_iniparser_getstring_array(dic, key, delimiters, size)
+        call c_f_pointer(result_struct%l, result_len_Fptr, [size]);
+        call c_f_pointer(result_struct%c, result_Cptrs_Fptr, [size])
+
+        !Convert from character arrays to scalar strings
+        allocate(result(size))
+        do m = 1, size
+            call c_f_pointer(result_Cptrs_Fptr(m), result_str_Fptr, [result_len_Fptr(m)])
+            result(m) = ""
+            do n = 1, result_len_Fptr(m)
+                result(m)(n:n) = result_str_Fptr(n)
+            end do
+        end do
+    end subroutine
+
+    subroutine iniparser_getint_array(result_Fptr, dic, key, delimiters, size)
+        integer(c_int), dimension(:), pointer, intent(out) :: result_Fptr
+        type(c_ptr), value, intent(in) :: dic
+        character(c_char), dimension(*), intent(in) :: key
+        character(c_char), dimension(*), intent(in) :: delimiters
+        integer(c_int), intent(in) :: size
+
+        type(c_ptr) :: result_Cptr = c_null_ptr
+
+        result_Cptr = C_iniparser_getint_array(dic, key, delimiters, size)
+        call c_f_pointer(result_Cptr, result_Fptr, [size]);
+    end subroutine
+
+    subroutine iniparser_getdouble_array(result_Fptr, dic, key, delimiters, size)
+        real(c_double), dimension(:), pointer, intent(out) :: result_Fptr
+        type(c_ptr), value, intent(in) :: dic
+        character(c_char), dimension(*), intent(in) :: key
+        character(c_char), dimension(*), intent(in) :: delimiters
+        integer(c_int), intent(in) :: size
+
+        type(c_ptr) :: result_Cptr = c_null_ptr
+
+        result_Cptr = C_iniparser_getdouble_array(dic, key, delimiters, size)
+        call c_f_pointer(result_Cptr, result_Fptr, [size]);
+    end subroutine
+
+    subroutine iniparser_getboolean_array(result_Fptr, dic, key, delimiters, notfound, size)
+        integer(c_int), dimension(:), pointer, intent(out) :: result_Fptr
+        type(c_ptr), value, intent(in) :: dic
+        character(c_char), dimension(*), intent(in) :: key
+        character(c_char), dimension(*), intent(in) :: delimiters
+        integer(c_int), intent(in) :: notfound
+        integer(c_int), intent(in) :: size
+
+        type(c_ptr) :: result_Cptr = c_null_ptr
+
+        result_Cptr = C_iniparser_getboolean_array(dic, key, delimiters, notfound, size)
+        call c_f_pointer(result_Cptr, result_Fptr, [size]);
+    end subroutine
 end module iniparser
