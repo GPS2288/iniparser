@@ -31,5 +31,3 @@ parse_f: parse_fortran.f03
 clean veryclean:
 	$(RM) iniexample example.ini parse
 
-
-

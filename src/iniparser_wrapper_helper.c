@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "iniparser.h"
 
 struct ptr_package
@@ -52,4 +53,60 @@ struct ptr_package iniparser_getstring_array_wrapper(dictionary* d, const char* 
 	result.l = result_len;
 
 	return result;
+}
+
+char* iniparser_getsecname_wrapper(dictionary* d, int n, unsigned long* result_len)
+{
+	char* result = NULL;
+
+	result = iniparser_getsecname(d, n);
+	*result_len = strlen(result);
+	return result;
+}
+
+struct ptr_package iniparser_getseckeys_wrapper(dictionary* d, char* s, int* size)
+{
+	int n;
+	char** result_strs = NULL;
+	unsigned long* result_len = NULL;
+	struct ptr_package result;
+
+	result_strs = iniparser_getseckeys(d, s);
+	*size = iniparser_getsecnkeys(d, s);
+	result_len = malloc(*size * sizeof(long));
+	for(n=0; n<*size; n++)
+	{
+		result_len[n] = strlen(result_strs[n]);
+	}
+	result.c = result_strs;
+	result.l = result_len;
+
+	return result;
+}
+
+void iniparser_dump_ini_wrapper(dictionary* d, const char* filename, const char* mode)
+{
+	FILE* f;
+
+	f = fopen(filename, mode);
+	iniparser_dump_ini(d, f);
+	fclose(f);
+}
+
+void iniparser_dumpsection_ini_wrapper(dictionary* d, char* s, const char* filename, const char* mode)
+{
+	FILE* f;
+
+	f = fopen(filename, mode);
+	iniparser_dumpsection_ini(d, s, f);
+	fclose(f);
+}
+
+void iniparser_dump_wrapper(dictionary* d, const char* filename, const char* mode)
+{
+	FILE* f;
+
+	f = fopen(filename, mode);
+	iniparser_dump(d, f);
+	fclose(f);
 }

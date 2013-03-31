@@ -61,7 +61,7 @@ veryclean:
 	cd test ; $(MAKE) veryclean
 
 docs:
-	@(cd doc ; $(MAKE))
+	@("$(MAKE)" -C doc/)
 	
 check:
-	@(cd test ; $(MAKE))
+	@("$(MAKE)" -C test/)
