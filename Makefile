@@ -44,6 +44,7 @@ SRCS = src/iniparser.c \
 
 OBJS = $(SRCS:.c=.o)
 
+all: default
 
 default:	libiniparser.a libiniparser.so
 
